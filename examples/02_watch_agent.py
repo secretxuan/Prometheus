@@ -4,29 +4,29 @@
 Prometheus 示例 #02: 观看训练后的智能体
 =============================================
 
-这个脚本会加载训练好的模型（或者快速训练一个），
-然后用动画展示智能体如何平衡杆子。
+这个脚本会快速训练一个模型，然后用动画展示智能体如何平衡杆子。
+
+运行方式:
+    python examples/02_watch_agent.py
 """
 
-import torch
-import torch.nn as nn
-import numpy as np
 import gymnasium as gym
 
-# 导入之前定义的类和配置
-import sys
-sys.path.append('.')
-from examples.train import QNetwork, DQNAgent, Config
+# 导入框架核心类
+from prometheus.core import DQNAgent, Config
 
 
 def watch_human_mode(agent, env, episodes=5):
     """
     以人类可视化的方式观看智能体表现
 
-    render_mode="human" 会打开一个窗口显示动画
+    Args:
+        agent: 训练好的智能体
+        env: 环境（带 render_mode="human"）
+        episodes: 要观看多少局
     """
     print("\n=== 观看模式 ===")
-    print("如果看不到窗口，可能是环境配置问题")
+    print("提示: 如果看不到窗口，请确保系统支持 GUI")
 
     for episode in range(episodes):
         state, _ = env.reset()
@@ -34,7 +34,7 @@ def watch_human_mode(agent, env, episodes=5):
         done = False
 
         while not done:
-            # 选择动作（不探索，只利用）
+            # 选择动作（training=False：不探索，只利用学到的策略）
             action = agent.select_action(state, training=False)
 
             # 执行动作
@@ -42,7 +42,7 @@ def watch_human_mode(agent, env, episodes=5):
             done = terminated or truncated
             score += reward
 
-        print(f"Episode {episode + 1}: 得分 = {score}")
+        print(f"Episode {episode + 1}: 得分 = {int(score)}")
 
     env.close()
 
@@ -50,7 +50,8 @@ def watch_human_mode(agent, env, episodes=5):
 def quick_train_and_watch():
     """快速训练一个模型然后观看"""
 
-    print("=== 快速训练一个模型 (50 episodes) ===")
+    print("=== 快速训练一个模型 (500 episodes) ===")
+    print("训练中...\n")
 
     # 创建环境（不渲染，训练更快）
     env = gym.make(Config.ENV_NAME)
@@ -62,11 +63,12 @@ def quick_train_and_watch():
     agent = DQNAgent(state_dim, action_dim, Config)
 
     # 快速训练
-    for episode in range(50):
+    for episode in range(500):
         state, _ = env.reset()
         score = 0
+        done = False
 
-        while True:
+        while not done:
             action = agent.select_action(state, training=True)
             next_state, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
@@ -79,23 +81,23 @@ def quick_train_and_watch():
             state = next_state
             score += reward
 
-            if done:
-                break
+        # 每 10 个 episode 打印一次
+        if (episode + 1) % 10 == 0:
+            print(f"Episode {episode + 1:3d}: 得分 = {int(score):3d}, ε = {agent.epsilon:.3f}")
 
-        if episode % 10 == 0:
-            print(f"Episode {episode}: 得分 = {score}")
-
-        if episode % 10 == 0:
+        # 每 10 个 episode 更新一次目标网络
+        if (episode + 1) % 10 == 0:
             agent.update_target_network()
 
     env.close()
 
     print("\n=== 训练完成，现在观看效果 ===")
+    print("正在打开可视化窗口...\n")
 
     # 创建带渲染的环境
     env = gym.make(Config.ENV_NAME, render_mode="human")
 
-    # 观看
+    # 观看 3 局
     watch_human_mode(agent, env, episodes=3)
 
 
