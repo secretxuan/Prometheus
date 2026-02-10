@@ -111,11 +111,11 @@ prometheus/
 - [x] Prioritized Experience Replay
 - [x] Rainbow DQN（整合所有改进）
 
-#### Week 7-8：策略梯度方法 🔲 进行中
-- [ ] REINFORCE（基础策略梯度）
-- [ ] Actor-Critic（AC）
-- [ ] A2C（Advantage Actor-Critic）
-- [ ] PPO（Proximal Policy Optimization）- 重点！
+#### Week 7-8：策略梯度方法 ✅ v0.3.0 已完成
+- [x] REINFORCE（基础策略梯度）
+- [x] Actor-Critic（AC）
+- [x] A2C（Advantage Actor-Critic）
+- [x] PPO（Proximal Policy Optimization）- 重点！
 
 ### 学习目标
 - 理解 On-policy vs Off-policy
@@ -125,20 +125,26 @@ prometheus/
 ### 预期产出
 ```
 prometheus/
-├── algorithms/
-│   ├── __init__.py
-│   ├── dqn/
-│   │   ├── __init__.py
-│   │   ├── dqn.py
-│   │   ├── double_dqn.py
-│   │   ├── dueling_dqn.py
+├── policies/
+│   ├── dqn/              ✅ DQN 系列
+│   │   ├── base.py
+│   │   ├── double.py
+│   │   ├── dueling.py
+│   │   ├── per.py
 │   │   └── rainbow.py
-│   └── policy_gradient/
-│       ├── __init__.py
+│   └── policy_gradient/  ✅ 策略梯度系列
 │       ├── reinforce.py
 │       ├── a2c.py
 │       └── ppo.py
+├── agents/
+│   ├── dqn/              ✅ DQN 系列智能体
+│   └── policy_gradient/  ✅ 策略梯度智能体
+└── trainers/
+    ├── dqn/              ✅ DQN 系列训练器
+    └── policy_gradient/  ✅ 策略梯度训练器
 ```
+
+**v0.3.0 已完成** - 共支持 8 种算法！
 
 ---
 
@@ -221,10 +227,8 @@ prometheus/
 |--------|------|------|
 | M1: Hello World | CartPole 得分 > 200 | ✅ 完成 |
 | M2: 框架雏形 | 模块化架构设计完成 | ✅ 完成 (v0.1.0) |
-| M3: 多算法支持 | 实现 3+ 算法 | 🔲 待开始 |
+| M3: 多算法支持 | 实现 6+ 算法 | ✅ 完成 (v0.3.0) |
 | M4: 性能突破 | 比纯 PyTorch 快 2x | 🔲 待开始 |
-| M5: 开源发布 | 文档完善，可公开使用 | 🔲 待开始 |
-| M4: 性能突破 | 比 PyTorch 实现快 2x | 🔲 待开始 |
 | M5: 开源发布 | 文档完善，可公开使用 | 🔲 待开始 |
 
 ---
@@ -269,4 +273,4 @@ prometheus/
 
 ---
 
-*最后更新：2026-02-08*
+*最后更新：2026-02-10*
