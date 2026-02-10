@@ -41,8 +41,8 @@ def main():
 
     # === 3. 创建训练器 ===
     config = TrainerConfig(
-        max_episodes=500,          # 训练 500 轮
-        max_steps_per_episode=500, # 每轮最多 500 步
+        max_episodes=5000,          # 训练 500 轮
+        max_steps_per_episode=5000, # 每轮最多 500 步
         eval_interval=100,         # 每 100 轮评估一次
         log_interval=10,           # 每 10 轮打印一次
         save_interval=500,         # 每 500 轮保存一次
