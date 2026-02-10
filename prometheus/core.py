@@ -545,3 +545,284 @@ class DQNAgent:
         self.q_network.load_state_dict(checkpoint['q_network'])
         self.target_network.load_state_dict(checkpoint['target_network'])
         self.epsilon = checkpoint['epsilon']
+
+
+# ============================================================
+# SumTree - 优先级经验回放的核心数据结构
+# ============================================================
+
+class SumTree:
+    """
+    SumTree 数据结构
+
+    用于优先级经验回放（PER），实现 O(log n) 的采样和更新。
+
+    通俗解释：
+    ---------
+    想象一棵树，每个叶子节点存储一条经验的优先级。
+    父节点的值 = 子节点值的和。
+
+    这样根节点就是所有优先级的总和，可以快速按比例采样。
+
+    结构示例（容量 = 4）：
+                [p0+p1+p2+p3]  <- 根节点（总和）
+                   /      \
+             [p0+p1]      [p2+p3]
+              /  \         /  \
+            p0    p1     p2    p3  <- 叶子节点（存储优先级）
+
+    优势：
+    ------
+    - 采样：O(log n) - 从根到叶子走一条路径
+    - 更新：O(log n) - 更新叶子后，向上更新父节点
+    """
+
+    def __init__(self, capacity: int):
+        """
+        初始化 SumTree
+
+        Args:
+            capacity: 能存储多少条经验（叶子节点数量）
+
+        完全二叉树的节点数：
+        - 如果有 n 个叶子，总共有 2n-1 个节点
+        - 前 n-1 个是父节点，后 n 个是叶子节点
+        """
+        self.capacity = capacity
+        self.tree = np.zeros(2 * capacity - 1)
+        self.data = np.zeros(capacity, dtype=object)
+        self.write = 0  # 写指针
+        self.n_entries = 0  # 当前存储的数量
+
+    def _propagate(self, idx: int, change: float):
+        """
+        向上更新父节点
+
+        Args:
+            idx: 当前节点索引
+            change: 值的变化量
+        """
+        parent = (idx - 1) // 2
+
+        self.tree[parent] += change
+
+        if parent != 0:
+            self._propagate(parent, change)
+
+    def _retrieve(self, idx: int, s: float) -> int:
+        """
+        向下查找叶子节点
+
+        Args:
+            idx: 当前节点索引
+            s: 要查找的值（优先级范围）
+
+        Returns:
+            叶子节点索引
+        """
+        left = 2 * idx + 1
+        right = left + 1
+
+        # 如果是叶子节点
+        if left >= len(self.tree):
+            return idx
+
+        # 如果值在左子树
+        if s <= self.tree[left]:
+            return self._retrieve(left, s)
+        else:
+            return self._retrieve(right, s - self.tree[left])
+
+    def total(self) -> float:
+        """返回优先级总和"""
+        return self.tree[0]
+
+    def add(self, priority: float, data):
+        """
+        添加一条经验
+
+        Args:
+            priority: 优先级值
+            data: 经验数据
+        """
+        idx = self.write + self.capacity - 1
+
+        self.data[self.write] = data
+        self.update(idx, priority)
+
+        self.write += 1
+        if self.write >= self.capacity:
+            self.write = 0
+
+        if self.n_entries < self.capacity:
+            self.n_entries += 1
+
+    def update(self, idx: int, priority: float):
+        """
+        更新优先级
+
+        Args:
+            idx: 节点索引
+            priority: 新的优先级值
+        """
+        change = priority - self.tree[idx]
+        self.tree[idx] = priority
+        self._propagate(idx, change)
+
+    def get(self, s: float):
+        """
+        按优先级采样
+
+        Args:
+            s: 采样值（范围 [0, total]）
+
+        Returns:
+            (idx, priority, data) 元组
+        """
+        idx = self._retrieve(0, s)
+        data_idx = idx - self.capacity + 1
+
+        return (idx, self.tree[idx], self.data[data_idx])
+
+
+# ============================================================
+# 优先级经验回放缓冲区
+# ============================================================
+
+class PrioritizedReplayBuffer:
+    """
+    优先级经验回放缓冲区
+
+    核心思想：
+    ---------
+    有些经验比其他经验更有"学习价值"。比如：
+    - 意料之外的高奖励（"哇，这样做效果这么好！"）
+    - 意料之外的失败（"哎呀，这样做不行！"）
+
+    我们应该多学习这些"意外"的经验，而不是平均学习所有经验。
+
+    优先级怎么算？
+    -------------
+    优先级 = |TD 误差| + ε
+
+    TD 误差越大，说明预测越不准，这条经验就越值得学习。
+
+    论文: Prioritized Experience Replay (2016)
+    """
+
+    def __init__(
+        self,
+        capacity: int,
+        alpha: float = 0.6,
+        beta_start: float = 0.4,
+        beta_frames: int = 100000,
+        epsilon: float = 1e-5
+    ):
+        """
+        初始化优先级经验回放缓冲区
+
+        Args:
+            capacity: 容量
+            alpha: 优先级指数（0 = 均匀采样，1 = 完全按优先级）
+            beta_start: 重要性采样权重初始值
+            beta_frames: beta 线性增长到 1 的步数
+            epsilon: 避免优先级为 0 的小常数
+        """
+        self.capacity = capacity
+        self.alpha = alpha
+        self.beta_start = beta_start
+        self.beta_frames = beta_frames
+        self.epsilon = epsilon
+
+        self.sum_tree = SumTree(capacity)
+        self.max_priority = 1.0
+        self.frame = 0  # 当前步数
+
+    def push(self, state, action, reward, next_state, done):
+        """
+        存入一条经验
+
+        新经验用最大优先级，确保至少被采样一次
+        """
+        transition = (state, action, reward, next_state, done)
+        self.sum_tree.add(self.max_priority, transition)
+
+    def sample(self, batch_size: int):
+        """
+        按优先级采样一批经验
+
+        Args:
+            batch_size: 批次大小
+
+        Returns:
+            (states, actions, rewards, next_states, dones, indices, weights)
+        """
+        batch_data = []
+        indices = []
+        weights = []
+
+        # 计算 beta（线性增长）
+        self.frame += 1
+        beta = min(1.0, self.beta_start + self.frame *
+                   (1.0 - self.beta_start) / self.beta_frames)
+
+        # 获取优先级总和
+        total = self.sum_tree.total()
+
+        # 按区间划分采样范围
+        segment = total / batch_size
+
+        for i in range(batch_size):
+            # 在每个区间内随机采样
+            s = random.uniform(segment * i, segment * (i + 1))
+
+            # 从 SumTree 获取数据
+            idx, priority, data = self.sum_tree.get(s)
+
+            batch_data.append(data)
+            indices.append(idx)
+
+            # 计算重要性采样权重
+            # P(i) = priority_i^alpha / total^alpha
+            # weight_i = (1 / N * 1 / P(i))^beta
+            prob = priority / total
+            weight = (self.capacity * prob) ** (-beta)
+            weights.append(weight)
+
+        # 归一化权重
+        weights = np.array(weights, dtype=np.float32)
+        weights /= weights.max()
+
+        # 解包数据
+        states, actions, rewards, next_states, dones = zip(*batch_data)
+
+        return (
+            np.array(states),
+            np.array(actions),
+            np.array(rewards),
+            np.array(next_states),
+            np.array(dones),
+            np.array(indices),
+            weights
+        )
+
+    def update_priorities(self, indices, priorities):
+        """
+        更新经验的优先级
+
+        Args:
+            indices: 经验索引
+            priorities: 新的优先级值（TD 误差）
+        """
+        for idx, priority in zip(indices, priorities):
+            # 优先级 = (|TD 误差| + ε)^alpha
+            priority = (abs(priority) + self.epsilon) ** self.alpha
+            self.sum_tree.update(idx, priority)
+
+            # 更新最大优先级
+            if priority > self.max_priority:
+                self.max_priority = priority
+
+    def __len__(self):
+        """返回当前存储了多少条经验"""
+        return self.sum_tree.n_entries

@@ -105,13 +105,13 @@ prometheus/
 
 ### 任务清单
 
-#### Week 5-6：DQN 改进版
-- [ ] Double DQN
-- [ ] Dueling DQN
-- [ ] Prioritized Experience Replay
-- [ ] Rainbow DQN（整合所有改进）
+#### Week 5-6：DQN 改进版 ✅ v0.2.0 已完成
+- [x] Double DQN
+- [x] Dueling DQN
+- [x] Prioritized Experience Replay
+- [x] Rainbow DQN（整合所有改进）
 
-#### Week 7-8：策略梯度方法
+#### Week 7-8：策略梯度方法 🔲 进行中
 - [ ] REINFORCE（基础策略梯度）
 - [ ] Actor-Critic（AC）
 - [ ] A2C（Advantage Actor-Critic）
