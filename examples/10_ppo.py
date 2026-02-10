@@ -33,13 +33,12 @@ def main():
     env = make_gym_env("CartPole-v1")
 
     # === 配置 ===
-    agent_config = Config(
-        LEARNING_RATE=3e-4,     # PPO 通常使用较小学习率
-        GAMMA=0.99,
-    )
+    # 设置全局 Config（静态类，直接修改属性）
+    Config.LEARNING_RATE = 3e-4     # PPO 通常使用较小学习率
+    Config.GAMMA = 0.99
 
     trainer_config = TrainerConfig(
-        max_episodes=300,
+        max_episodes=3000,
         max_steps_per_episode=500,
         eval_interval=50,
         eval_episodes=10,
@@ -55,7 +54,6 @@ def main():
     agent = PPOAgent(
         state_dim=state_dim,
         action_dim=action_dim,
-        config=agent_config,
         device="cuda" if torch.cuda.is_available() else "cpu"
     )
 
@@ -67,7 +65,7 @@ def main():
     n_epochs = 4          # 每次收集数据后更新多少轮
     batch_size = 64       # 批量大小
 
-    results = trainer.train(env, agent, n_epochs=n_epochs, batch_size=batch_size)
+    trainer.train(env, agent, n_epochs=n_epochs, batch_size=batch_size)
 
     # === 最终评估 ===
     print("\n" + "=" * 60)

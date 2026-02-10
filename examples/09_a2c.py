@@ -31,10 +31,9 @@ def main():
     env = make_gym_env("CartPole-v1")
 
     # === 配置 ===
-    agent_config = Config(
-        LEARNING_RATE=1e-3,
-        GAMMA=0.99,
-    )
+    # 设置全局 Config（静态类，直接修改属性）
+    Config.LEARNING_RATE = 1e-3
+    Config.GAMMA = 0.99
 
     trainer_config = TrainerConfig(
         max_episodes=500,
@@ -53,7 +52,6 @@ def main():
     agent = A2CAgent(
         state_dim=state_dim,
         action_dim=action_dim,
-        config=agent_config,
         device="cuda" if torch.cuda.is_available() else "cpu"
     )
 

@@ -29,7 +29,6 @@ class REINFORCEAgent(BaseAgent):
         self,
         state_dim: int,
         action_dim: int,
-        config: Config = None,
         device: str = "auto"
     ):
         """
@@ -38,29 +37,25 @@ class REINFORCEAgent(BaseAgent):
         Args:
             state_dim: 状态维度
             action_dim: 动作数量
-            config: 配置对象
             device: 计算设备
         """
-        if config is None:
-            config = Config()
-
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.config = config
+        self.config = Config  # 使用静态 Config 类
 
         # === 创建策略 ===
         self.policy = REINFORCEPolicy(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=128,
-            gamma=config.GAMMA,
+            gamma=Config.GAMMA,
             device=device
         )
 
         # === 创建优化器 ===
         self.optimizer = optim.Adam(
             self.policy.policy_network.parameters(),
-            lr=config.LEARNING_RATE
+            lr=Config.LEARNING_RATE
         )
         self.policy.set_optimizer(self.optimizer)
 

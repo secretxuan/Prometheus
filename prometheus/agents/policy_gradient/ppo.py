@@ -6,6 +6,7 @@ PPO 智能体
 
 import torch.optim as optim
 import numpy as np
+import torch
 from typing import Dict, Any
 
 from prometheus.agents.base import BaseAgent
@@ -30,7 +31,6 @@ class PPOAgent(BaseAgent):
         self,
         state_dim: int,
         action_dim: int,
-        config: Config = None,
         device: str = "auto"
     ):
         """
@@ -39,22 +39,18 @@ class PPOAgent(BaseAgent):
         Args:
             state_dim: 状态维度
             action_dim: 动作数量
-            config: 配置对象
             device: 计算设备
         """
-        if config is None:
-            config = Config()
-
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.config = config
+        self.config = Config  # 使用静态 Config 类
 
         # === 创建策略 ===
         self.policy = PPOPolicy(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=64,
-            gamma=config.GAMMA,
+            gamma=Config.GAMMA,
             gae_lambda=0.95,
             clip_epsilon=0.2,
             entropy_coef=0.01,
@@ -65,7 +61,7 @@ class PPOAgent(BaseAgent):
         # === 创建优化器 ===
         self.optimizer = optim.Adam(
             list(self.policy.actor.parameters()) + list(self.policy.critic.parameters()),
-            lr=config.LEARNING_RATE
+            lr=Config.LEARNING_RATE
         )
         self.policy.set_optimizer(self.optimizer)
 

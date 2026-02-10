@@ -6,6 +6,7 @@ A2C 智能体
 
 import torch.optim as optim
 import numpy as np
+import torch
 from typing import Dict, Any
 
 from prometheus.agents.base import BaseAgent
@@ -29,7 +30,6 @@ class A2CAgent(BaseAgent):
         self,
         state_dim: int,
         action_dim: int,
-        config: Config = None,
         device: str = "auto"
     ):
         """
@@ -38,22 +38,18 @@ class A2CAgent(BaseAgent):
         Args:
             state_dim: 状态维度
             action_dim: 动作数量
-            config: 配置对象
             device: 计算设备
         """
-        if config is None:
-            config = Config()
-
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.config = config
+        self.config = Config  # 使用静态 Config 类
 
         # === 创建策略 ===
         self.policy = A2CPolicy(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=128,
-            gamma=config.GAMMA,
+            gamma=Config.GAMMA,
             entropy_coef=0.01,
             device=device
         )
@@ -61,11 +57,11 @@ class A2CAgent(BaseAgent):
         # === 创建优化器 ===
         self.actor_optimizer = optim.Adam(
             self.policy.actor.parameters(),
-            lr=config.LEARNING_RATE
+            lr=Config.LEARNING_RATE
         )
         self.critic_optimizer = optim.Adam(
             self.policy.critic.parameters(),
-            lr=config.LEARNING_RATE
+            lr=Config.LEARNING_RATE
         )
         self.policy.set_optimizer(self.actor_optimizer, self.critic_optimizer)
 
